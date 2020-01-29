@@ -3,3 +3,5 @@ strava
 *.pyc
 *.osm
 *.pkl
+.DS_Store
+.env

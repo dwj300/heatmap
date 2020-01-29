@@ -15,13 +15,12 @@ from sklearn.cluster import DBSCAN
 import osm
 
 # TODO: move to argparse
-use_osm = True
 osm_color = "salmon"
 osm_line_width = .1
 osm_alpha = .5
 
 
-def plot(data, background_color, line_width, line_color, line_alpha, dpi, label=0):
+def plot(data, background_color, line_width, line_color, line_alpha, dpi, use_osm, label=0):
     if line_color.startswith("cmap:"):
         use_cmap = True
         max_elev = max([max(d["elevs"]) for d in data])
@@ -156,6 +155,8 @@ def add_shared_args(parser):
         help="if defined only include this activity type")
     parser.add_argument("--gpx-dir", default="strava",
         help="directory with gpx files")
+    parser.add_argument("--use-osm", default=False, action="store_true",
+        help="overlay heatmap on top of OpenStreetMap")
 
 
 parser = ArgumentParser()
@@ -179,7 +180,7 @@ add_shared_args(all_tracks_parser)
 
 args = parser.parse_args()
 
-plot_keys = ["background_color", "line_color", "line_width", "line_alpha", "dpi"]
+plot_keys = ["background_color", "line_color", "line_width", "line_alpha", "dpi", "use_osm"]
 plot_args = {k: getattr(args, k) for k in plot_keys}
 
 cache_path = os.path.join(args.gpx_dir, "cache.pkl")
