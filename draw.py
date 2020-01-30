@@ -217,7 +217,7 @@ elif args.reduction == "start":
     coords = np.array([[np.average(d["lats"][0]), np.average(d["lons"][0])] for d in data])
 
 if args.type == "cluster":
-    cluster = DBSCAN(eps=args.radius, min_samples=10)
+    cluster = DBSCAN(eps=args.radius, min_samples=args.min_cluster_size)
     cluster.fit(coords)
     n_clusters = np.max(cluster.labels_) + 1
     centroids = [np.mean(coords[cluster.labels_ == l], axis=0) for l in range(n_clusters)]
