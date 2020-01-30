@@ -35,11 +35,14 @@ def main():
     p = multiprocessing.Pool(multiprocessing.cpu_count())
     results = p.map(disjointed, files)
     bad = [r for r in results if r]
-    for b in bad:
-        if os.path.exists(b):
-            print(f"deleting {b}")
-            os.remove(b)
-
+    if len(bad) > 0:
+        with open("strava/rogue.txt", "a") as f:
+            for b in bad:
+                print(f"deleting {b}")
+                os.remove(b)
+                i = b.split(".")[0].split("/")[1]
+                f.write(f"\n{i}")
+        os.remove("strava/cache.pkl")
 
 if __name__ == '__main__':
     main()
