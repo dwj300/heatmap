@@ -4,7 +4,9 @@ import argparse
 import getpass
 import os
 import math
+import multiprocessing
 import sys
+import threading
 
 import lxml.html
 import requests
@@ -14,6 +16,8 @@ session_url = "https://www.strava.com/session"
 activities_url = "https://www.strava.com/athlete/training_activities"
 gpx_url = "https://www.strava.com/activities/{id}/export_gpx"
 activity_txt = "activities.txt"
+rogue_txt = "rogue.txt"
+skipped_txt = "skipped.txt"
 
 
 def get_activity_ids(sess, current_list=None):
@@ -51,6 +55,33 @@ def get_activity_ids(sess, current_list=None):
     return activities
 
 
+def get_activity(identifier):
+    if identifier in rogue:
+        print(f"> skipping rogue activity: {identifier}")
+        return
+
+    if identifier in skipped:
+        print(f"> skipping non-gpx activity: {identifier}")
+        return
+
+    output = os.path.join(args.output_dir, f"{identifier}.gpx")
+    if not os.path.exists(output):
+        print(f"downloading activity {identifier} to {output}")
+        with sess.get(gpx_url.format(id=identifier)) as r:
+            content = r.content
+            if not r.content.startswith(b"<?xml"):
+                print("> data doesn't look like gpx, skipping")
+                new_skipped.append(identifier)
+                return
+            with open(output, "wb") as f:
+                f.write(content)
+    else:
+        print(f"{output} already exists")
+        if args.quick:
+            print("found an existing gpx file, exiting")
+            sys.exit(0)
+
+
 parser = argparse.ArgumentParser()
 
 parser.add_argument("--output-dir", default="strava")
@@ -71,10 +102,22 @@ else:
 if not os.path.exists(args.output_dir):
     os.mkdir(args.output_dir)
 
+rogue = []
+rogue_filename = os.path.join(args.output_dir, rogue_txt)
+if os.path.exists(rogue_filename):
+    with open(rogue_filename, "r") as f:
+        rogue.extend([l.strip() for l in f.readlines()])
+
+skipped = []
+skipped_filename = os.path.join(args.output_dir, skipped_txt)
+if os.path.exists(skipped_filename):
+    with open(skipped_filename, "r") as f:
+        skipped.extend([l.strip() for l in f.readlines()])
+
 email = input("email> ")
 password = getpass.getpass("password> ")
 
-skipped = []
+new_skipped = []
 with requests.session() as sess:
     page = sess.get(login_url)
     html = lxml.html.fromstring(page.text)
@@ -91,31 +134,18 @@ with requests.session() as sess:
     print("getting activity list")
     activity_ids = get_activity_ids(sess, current_list=activity_ids)
     print(f"writing activity list to {args.activity_list}")
+    p = multiprocessing.Pool(multiprocessing.cpu_count())
     with open(args.activity_list, "w") as f:
         f.write("\n".join(activity_ids))
-
+    threads = []
     for count, identifier in enumerate(activity_ids, 1):
-        if count % 20 == 0:
-            print(f"({count}/{len(activity_ids)})")
+        t = threading.Thread(target=get_activity, args=(identifier,))
+        threads.append(t)
+        t.start()
 
-        output = os.path.join(args.output_dir, f"{identifier}.gpx")
-        if not os.path.exists(output):
-            print(f"downloading activity {identifier} to {output}")
-            with sess.get(gpx_url.format(id=identifier)) as r:
-                content = r.content
-                if not r.content.startswith(b"<?xml"):
-                    print("> data doesn't look like gpx, skipping")
-                    skipped.append(identifier)
-                    continue
-                with open(output, "wb") as f:
-                    f.write(content)
-        else:
-            print(f"{output} already exists")
-            if args.quick:
-                print("found an existing gpx file, exiting")
-                sys.exit(0)
+    for r in threads:
+        t.join()
 
-fname = os.path.join(args.output_dir, "skipped.txt")
-print(f"writing skipped activity list to {fname}")
-with open(fname, "w") as f:
-    f.write("\n".join(skipped))
+print(f"writing skipped activity list to {skipped_filename}")
+with open(skipped_filename, "a") as f:
+    f.write("\n".join(new_skipped))

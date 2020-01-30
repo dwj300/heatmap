@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
+from glob import glob
 from gpxpy import parse
 from math import atan2, cos, radians, sin, sqrt
-from glob import glob
+import multiprocessing
 
 
 def distance(origin, destination):
@@ -20,21 +21,20 @@ def distance(origin, destination):
 def disjointed(filename, max_jump=1):
     gpx_file = open(filename, 'r')
     gpx = parse(gpx_file)
-    distances = []
     for i in range(len(gpx.tracks[0].segments[0].points)-1):
         p1 = gpx.tracks[0].segments[0].points[i]
         p2 = gpx.tracks[0].segments[0].points[i+1]
         d = distance((p1.latitude, p1.longitude), (p2.latitude, p2.longitude))
-        distances.append(d)
-    return max(distances) > max_jump
+        if d > max_jump:
+            return filename
+    return None
 
 
 def main():
     files = glob("strava/*.gpx")
-    for filename in files:
-        if disjointed(filename):
-            print(filename)
-
+    p = multiprocessing.Pool(multiprocessing.cpu_count())
+    results = p.map(disjointed, files)
+    print([r for r in results if r])
 
 if __name__ == '__main__':
     main()
