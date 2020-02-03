@@ -14,8 +14,6 @@ session_url = "https://www.strava.com/session"
 activities_url = "https://www.strava.com/athlete/training_activities"
 gpx_url = "https://www.strava.com/activities/{id}/export_gpx"
 activity_txt = "activities.txt"
-skipped_txt = "skipped.txt"
-rogue_txt = "rogue.txt"
 
 
 def get_activity_ids(sess, current_list=None):
@@ -73,24 +71,10 @@ else:
 if not os.path.exists(args.output_dir):
     os.mkdir(args.output_dir)
 
-
-old_skipped = []
-skipped_file = os.path.join(args.output_dir, skipped_txt)
-if os.path.exists(skipped_file):
-    with open(skipped_file, "r") as f:
-        old_skipped.extend([l.strip() for l in f.readlines()])
-
-rogue = []
-rogue_file = os.path.join(args.output_dir, rogue_txt)
-if os.path.exists(rogue_file):
-    with open(rogue_file, "r") as f:
-        rogue.extend([l.strip() for l in f.readlines()])
-
 email = input("email> ")
 password = getpass.getpass("password> ")
 
 skipped = []
-
 with requests.session() as sess:
     page = sess.get(login_url)
     html = lxml.html.fromstring(page.text)
@@ -113,12 +97,7 @@ with requests.session() as sess:
     for count, identifier in enumerate(activity_ids, 1):
         if count % 20 == 0:
             print(f"({count}/{len(activity_ids)})")
-        if identifier in old_skipped:
-            print(">> data doesn't look like gpx, skipping")
-            continue
-        if identifier in rogue:
-            print(">>> data is rogue, skipping")
-            continue
+
         output = os.path.join(args.output_dir, f"{identifier}.gpx")
         if not os.path.exists(output):
             print(f"downloading activity {identifier} to {output}")
@@ -136,7 +115,7 @@ with requests.session() as sess:
                 print("found an existing gpx file, exiting")
                 sys.exit(0)
 
-
-print(f"writing skipped activity list to {skipped_file}")
-with open(skipped_file, "a") as f:
+fname = os.path.join(args.output_dir, "skipped.txt")
+print(f"writing skipped activity list to {fname}")
+with open(fname, "w") as f:
     f.write("\n".join(skipped))
