@@ -114,17 +114,16 @@ def load_gpx(files, data=None):
             gpx = gpxpy.parse(f)
 
         track = gpx.tracks[0]
-        segment = track.segments[0]
-
-        data["tracks"].append({
-            "lats": np.array([p.latitude for p in segment.points]),
-            "lons": np.array([p.longitude for p in segment.points]),
-            "elevs": np.array([p.elevation for p in segment.points]),
-            "type": int(track.type),
-            "name": track.name,
-            "date": gpx.time,
-            "filename": os.path.basename(path)
-        })
+        for segment in track.segments:
+            data["tracks"].append({
+                "lats": np.array([p.latitude for p in segment.points]),
+                "lons": np.array([p.longitude for p in segment.points]),
+                "elevs": np.array([p.elevation for p in segment.points]),
+                "type": int(track.type),
+                "name": track.name,
+                "date": gpx.time,
+                "filename": os.path.basename(path)
+            })
     print(f"loaded {len(data)} file(s)")
     file_set = set(os.path.basename(f) for f in files)
     if "files" in data:
@@ -211,6 +210,7 @@ else:
 
 if args.reduction == "average":
     coords = np.array([[np.average(d["lats"]), np.average(d["lons"])] for d in data])
+    print(coords)
 elif args.reduction == "start_stop_average":
     coords = np.array([[np.average(d["lats"][[0, -1]]), np.average(d["lons"][[0, -1]])] for d in data])
 elif args.reduction == "start":
