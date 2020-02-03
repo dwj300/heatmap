@@ -210,7 +210,6 @@ else:
 
 if args.reduction == "average":
     coords = np.array([[np.average(d["lats"]), np.average(d["lons"])] for d in data])
-    print(coords)
 elif args.reduction == "start_stop_average":
     coords = np.array([[np.average(d["lats"][[0, -1]]), np.average(d["lons"][[0, -1]])] for d in data])
 elif args.reduction == "start":

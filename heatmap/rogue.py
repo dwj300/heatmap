@@ -16,7 +16,8 @@ def break_segment(segment, break_points):
             new1, new2 = old.split(b-i)
             if len(new1.points) != 0:
                 new.append(new1)
-            assert(len(new2.points) != 0)
+            if len(new2.points) == 0:
+                return new
             new.append(new2)
             i += b
     return new
@@ -54,7 +55,7 @@ def disjointed(filename):
     with open(filename, 'r') as f:
         gpx = parse(f)
     old_segments = gpx.tracks[0].segments
-    new_segments = fix_segments(old_segments, 0.01)
+    new_segments = fix_segments(old_segments, 0.1)
     if len(old_segments) == len(new_segments):
         return None
     gpx.tracks[0].segments = new_segments
