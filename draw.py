@@ -9,10 +9,11 @@ import sys
 import gpxpy
 import matplotlib
 from matplotlib.collections import LineCollection
+from matplotlib import cm
 import numpy as np
 import requests
 from sklearn.cluster import DBSCAN
-
+from mpl_toolkits.basemap import Basemap
 import osm
 
 matplotlib.use('Agg')
@@ -24,7 +25,7 @@ osm_color = "salmon"
 osm_line_width = .1
 osm_alpha = .5
 use_alpha_recoloring = True
-
+use_log_alpha = True
 
 def alpha_recolor(filename, background_color):
     try:
@@ -35,7 +36,7 @@ def alpha_recolor(filename, background_color):
 
     # TODO: support cmaps, .1 seems to work well for me, could even be lower
     factor = .1
-
+    colormap = cm.get_cmap('cool')
     print(f"recoloring {filename}")
     # hide DecompressionBombWarning
     with Image.open(filename) as img:
@@ -47,8 +48,16 @@ def alpha_recolor(filename, background_color):
     print(max_alpha)
 
     print("recoloring")
-    data[data[:,:,-1] >= factor*max_alpha] = (255, 0, 0, 255)
-    data[(data[:,:,-1] > 0) * (data[:,:,-1] < factor*max_alpha)] = (0, 0, 255, 255)
+    #import pdb; pdb.set_trace()
+    #data 
+    #data[data[:,:,-1] >= factor*max_alpha] = (255, 0, 0, 255)
+
+    alphas = data[(data[:,:,-1] > 0)][:,3]
+    if use_log_alpha:
+        max_alpha = np.log(max_alpha)
+        alphas = np.log(alphas)
+
+    data[(data[:,:,-1] > 0)] = colormap(alphas / max_alpha) * 255 
 
     print("adding background")
     data[data[:,:,-1] == 0] = tuple(v*255 for v in matplotlib.colors.to_rgba(background_color))
@@ -84,6 +93,13 @@ def plot(data, background_color, line_width, line_color, line_alpha, dpi, label=
     fig = plt.figure(facecolor=background_color)
     ax = fig.add_subplot(111)
 
+    #min_lat = min([min(d['lat']) for d in data])
+    #min_lon = min([min(d['lon']) for d in data])
+    #max_lat = max([max(d['lat']) for d in data])
+    #max_lon = max([max(d['lon']) for d in data])
+    
+    m = Basemap(projection='tmerc', lon_0=-122.336240, lat_0=47.619950, width=15000, height=15000)
+
     if use_cmap:
         for i, ds in enumerate(data, 1):
             print(f"> plotting ({i}/{len(data)})", end="\r")
@@ -99,7 +115,7 @@ def plot(data, background_color, line_width, line_color, line_alpha, dpi, label=
                 lc.set_linewidth(line_width)
                 ax.add_collection(lc)
     else:
-        segments = [[(lon, lat) for lon, lat in zip(d["lons"], d["lats"])] for d in data]
+        segments = [[m(lon, lat) for lon, lat in zip(d["lons"], d["lats"])] for d in data]
         lc = LineCollection(segments, colors=line_color, alpha=line_alpha)
         lc.set_linewidth(line_width)
         ax.add_collection(lc)
@@ -136,7 +152,8 @@ def plot(data, background_color, line_width, line_color, line_alpha, dpi, label=
         lc.set_linewidth(osm_line_width)
         ax.add_collection(lc)
 
-    ax.set_aspect(aspect_ratio)
+    #ax.set_aspect(aspect_ratio)
+    ax.set_aspect('equal')
     ax.get_xaxis().set_visible(False)
     ax.get_yaxis().set_visible(False)
     ax.set_facecolor(background_color)
