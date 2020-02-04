@@ -52,12 +52,37 @@ def plot(data, background_color, line_width, line_color, line_alpha, dpi, use_os
                 lc.set_array(elevs)
                 lc.set_linewidth(line_width)
                 ax.add_collection(lc)
+    elif line_color.startswith("dots"):
+        pixels = np.zeros((dpi*20, dpi*20))
+        min_lat = min([min(d['lats']) for d in data])
+        min_lon = min([min(d['lons']) for d in data])
+        max_lat = max([max(d['lats']) for d in data])
+        max_lon = max([max(d['lons']) for d in data])
+        for d in data:
+            lats = np.rint(((d['lats'] - min_lat) / (max_lat-min_lat)) * (dpi*19))
+            lons = np.rint(((d['lons'] - min_lon) / (max_lon-min_lon)) * (dpi*19))
+            for i in range(len(lats)):
+                pixels[int(lats[i])][int(lons[i])] += 1
+        x = []
+        y = []
+        s = []
+        for i in range(dpi*20):
+            for j in range(dpi*20):
+                if pixels[i][j] > 0:
+                    x.append(j)
+                    y.append(i)
+                    s.append(pixels[i][j])
+
+        #print(pixels)
+        ax.scatter(x,y,s=.1, c=s, cmap='cool')
+        import pdb; pdb.set_trace()
     else:
         segments = [[(lon, lat) for lon, lat in zip(d["lons"], d["lats"])] for d in data]
         lc = LineCollection(segments, colors=line_color, alpha=line_alpha)
         lc.set_linewidth(line_width)
         ax.add_collection(lc)
-
+            
+    ax.axis('equal')
     ax.autoscale()
     xlim = ax.get_xlim()
     ylim = ax.get_ylim()
@@ -90,14 +115,14 @@ def plot(data, background_color, line_width, line_color, line_alpha, dpi, use_os
         lc.set_linewidth(osm_line_width)
         ax.add_collection(lc)
 
-    ax.set_aspect(aspect_ratio)
-    ax.get_xaxis().set_visible(False)
-    ax.get_yaxis().set_visible(False)
+    #ax.set_aspect(aspect_ratio)
+    #ax.get_xaxis().set_visible(False)
+    #ax.get_yaxis().set_visible(False)
     ax.set_facecolor(background_color)
     for spine in ax.spines.values():
         spine.set_edgecolor(background_color)
     #ax.axis("off")
-    #plt.show()
+    plt.show()
     fig.savefig(f"figure_label_{label}.png", facecolor=fig.get_facecolor(),
             edgecolor="none", dpi=dpi)
     plt.close(fig)
@@ -226,6 +251,7 @@ if args.type == "cluster":
 
     for label in range(n_clusters):
         label_data = data[cluster.labels_ == label]
+        files = [x['filename'] for x in label_data]
         print(f"plotting cluster {label+1}/{n_clusters}: {len(label_data)} tracks")
         plot(label_data, **plot_args, label=label)
 
